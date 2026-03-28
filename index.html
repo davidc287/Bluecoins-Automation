@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bluecoins CSV Converter</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h2 { color: #1e88e5; }
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-family: monospace;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #1e88e5;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover { background-color: #1565c0; }
+        .export-btn { background-color: #4caf50; }
+        .export-btn:hover { background-color: #388e3c; }
+        pre {
+            background-color: #fff;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        .instructions { font-size: 14px; color: #666; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+    <h2>Bluecoins Quick Converter</h2>
+    <p class="instructions">Paste your transaction notes below. Format: <br>
+    <i>7:35 total = 42 (Riz John Wallet)<br>
+    egg = 20<br>
+    milo = 22</i></p>
+
+    <textarea id="rawInput" placeholder="Paste your notes here..."></textarea>
+    
+    <div>
+        <button onclick="convertData()">1. Convert to CSV</button>
+        <button class="export-btn" onclick="downloadCSV()">2. Download .csv File</button>
+    </div>
+
+    <h3>CSV Preview</h3>
+    <pre id="csvOutput">(CSV will appear here)</pre>
+
+    <script>
+        function convertData() {
+            const input = document.getElementById('rawInput').value.trim();
+            const lines = input.split('\n').filter(line => line.trim() !== '');
+
+            if (lines.length === 0) {
+                alert("Please paste some notes first!");
+                return;
+            }
+
+            let time = "";
+            let account = "Wallet"; // Default fallback
+            
+            // Extract time and account from the first line (e.g., "7:35 total = 42 (Riz John Wallet)")
+            const headerMatch = lines[0].match(/^([\d:]+(?:\s*[ap]m)?).*?\((.*?)\)/i);
+            if (headerMatch) {
+                time = headerMatch[1];
+                account = headerMatch[2];
+            }
+
+            // Get today's date
+            const dateObj = new Date();
+            const dateStr = `${dateObj.getMonth() + 1}/${dateObj.getDate()}/${dateObj.getFullYear()}`;
+            const dateTimeStr = time ? `${dateStr} ${time}` : dateStr;
+
+            const csvRows = [];
+            // Add Bluecoins Official Header
+            csvRows.push("(1)Type,(2)Date,(3)Item or Payee,(4)Amount,(5)Parent Category,(6)Category,(7)Account Type,(8)Account,(9)Notes,(10) Label,(11) Status,(12) Split");
+
+            // Loop through the rest of the lines for the split items
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i];
+                // Look for "Item = Amount"
+                const itemMatch = line.match(/(.*?)\s*=\s*([\d.]+)/);
+                if (itemMatch) {
+                    const note = itemMatch[1].trim();
+                    const amount = itemMatch[2].trim();
+                    
+                    // Format: e, Date, Payee, Amount, Parent, Category, Acc Type, Account, Notes, Label, Status, Split
+                    csvRows.push(`e,${dateTimeStr},General Expense,${amount},Household,Grocery,Cash,${account},${note},,,s`);
+                }
+            }
+
+            const csvContent = csvRows.join('\n');
+            document.getElementById('csvOutput').textContent = csvContent;
+        }
+
+        function downloadCSV() {
+            const csvContent = document.getElementById('csvOutput').textContent;
+            if (csvContent === "(CSV will appear here)" || csvContent.trim() === "") {
+                alert("Please convert your data first.");
+                return;
+            }
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            
+            link.setAttribute("href", url);
+            link.setAttribute("download", "bluecoins_import.csv");
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+
+</body>
+</html>
