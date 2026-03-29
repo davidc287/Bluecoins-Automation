@@ -77,22 +77,36 @@
                 return;
             }
 
-            let time = "";
+            let finalTime = "";
             let account = "Wallet"; 
             
             const headerMatch = lines[0].match(/^([\d:]+(?:\s*[ap]m)?).*?\((.*?)\)/i);
             if (headerMatch) {
-                time = headerMatch[1];
+                let rawTime = headerMatch[1].trim().toLowerCase();
                 account = headerMatch[2];
+
+                // Convert to 24-hour military time for Bluecoins
+                let isPM = rawTime.includes('pm');
+                let isAM = rawTime.includes('am');
+                rawTime = rawTime.replace(/[a-z\s]/g, ''); // strip am/pm
+                let timeParts = rawTime.split(':');
+                
+                if (timeParts.length === 2) {
+                    let hours = parseInt(timeParts[0], 10);
+                    let mins = timeParts[1];
+                    
+                    if (isPM && hours < 12) hours += 12;
+                    if (isAM && hours === 12) hours = 0;
+                    
+                    // Pad single digit hours (e.g. 7 becomes 07)
+                    finalTime = (hours < 10 ? "0" + hours : hours) + ":" + mins;
+                }
             }
 
             const dateObj = new Date();
+            // Format strictly as M/D/YYYY
             const dateStr = `${dateObj.getMonth() + 1}/${dateObj.getDate()}/${dateObj.getFullYear()}`;
-            // Pad time with a leading zero if needed so Bluecoins reads it perfectly (e.g. 07:35)
-            if (time && time.length === 4 && time.includes(':')) {
-                time = "0" + time;
-            }
-            const dateTimeStr = time ? `${dateStr} ${time}` : dateStr;
+            const dateTimeStr = finalTime ? `${dateStr} ${finalTime}` : dateStr;
 
             const csvRows = [];
             csvRows.push("(1)Type,(2)Date,(3)Item or Payee,(4)Amount,(5)Parent Category,(6)Category,(7)Account Type,(8)Account,(9)Notes,(10) Label,(11) Status,(12) Split");
@@ -119,8 +133,6 @@
                 return;
             }
 
-            // FIX 1: Add the \uFEFF (Byte Order Mark) so Bluecoins strictly recognizes it as UTF-8
-            // FIX 2: Use application/octet-stream so Android doesn't mess with the file extension
             const blob = new Blob(["\uFEFF" + csvContent], { type: 'application/octet-stream' });
             const link = document.createElement("a");
             const url = URL.createObjectURL(blob);
