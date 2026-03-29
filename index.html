@@ -33,6 +33,7 @@
             cursor: pointer;
             font-size: 16px;
             margin-right: 10px;
+            margin-bottom: 10px;
         }
         button:hover { background-color: #1565c0; }
         .export-btn { background-color: #4caf50; }
@@ -77,34 +78,32 @@
             }
 
             let time = "";
-            let account = "Wallet"; // Default fallback
+            let account = "Wallet"; 
             
-            // Extract time and account from the first line (e.g., "7:35 total = 42 (Riz John Wallet)")
             const headerMatch = lines[0].match(/^([\d:]+(?:\s*[ap]m)?).*?\((.*?)\)/i);
             if (headerMatch) {
                 time = headerMatch[1];
                 account = headerMatch[2];
             }
 
-            // Get today's date
             const dateObj = new Date();
             const dateStr = `${dateObj.getMonth() + 1}/${dateObj.getDate()}/${dateObj.getFullYear()}`;
+            // Pad time with a leading zero if needed so Bluecoins reads it perfectly (e.g. 07:35)
+            if (time && time.length === 4 && time.includes(':')) {
+                time = "0" + time;
+            }
             const dateTimeStr = time ? `${dateStr} ${time}` : dateStr;
 
             const csvRows = [];
-            // Add Bluecoins Official Header
             csvRows.push("(1)Type,(2)Date,(3)Item or Payee,(4)Amount,(5)Parent Category,(6)Category,(7)Account Type,(8)Account,(9)Notes,(10) Label,(11) Status,(12) Split");
 
-            // Loop through the rest of the lines for the split items
             for (let i = 1; i < lines.length; i++) {
                 const line = lines[i];
-                // Look for "Item = Amount"
                 const itemMatch = line.match(/(.*?)\s*=\s*([\d.]+)/);
                 if (itemMatch) {
                     const note = itemMatch[1].trim();
                     const amount = itemMatch[2].trim();
                     
-                    // Format: e, Date, Payee, Amount, Parent, Category, Acc Type, Account, Notes, Label, Status, Split
                     csvRows.push(`e,${dateTimeStr},General Expense,${amount},Household,Grocery,Cash,${account},${note},,,s`);
                 }
             }
@@ -120,7 +119,9 @@
                 return;
             }
 
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            // FIX 1: Add the \uFEFF (Byte Order Mark) so Bluecoins strictly recognizes it as UTF-8
+            // FIX 2: Use application/octet-stream so Android doesn't mess with the file extension
+            const blob = new Blob(["\uFEFF" + csvContent], { type: 'application/octet-stream' });
             const link = document.createElement("a");
             const url = URL.createObjectURL(blob);
             
